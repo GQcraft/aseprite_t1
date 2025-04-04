@@ -1,0 +1,43 @@
+name: Build Aseprite for Intel macOS
+
+on:
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    runs-on: macos-11  # 强制指定 macOS 12 (Intel)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja libpng
+
+      - name: Download Skia (Intel x64)
+        run: |
+          mkdir -p skia
+          cd skia
+          curl -L -o skia.zip https://github.com/aseprite/skia/releases/download/m102-861e4743af/Skia-macOS-Release-x64.zip
+          unzip -q skia.zip
+          echo "SKIA_DIR=$(pwd)" >> $GITHUB_ENV
+
+      - name: Build Aseprite
+        run: |
+          mkdir -p build && cd build
+          cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLAF_BACKEND=skia \
+            -DSKIA_DIR="$SKIA_DIR" \
+            -DSKIA_LIBRARY_DIR="$SKIA_DIR/out/Release-x64" \
+            -G Ninja \
+            ..
+          ninja aseprite
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Aseprite-Intel-macOS
+          path: build/bin/aseprite
